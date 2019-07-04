@@ -114,7 +114,8 @@ class SwarmConvLSTMCell(nn.Module):
 
         # use strict argument only in the first iterations and if we use CausalConv?d layers
         if self.kernel is not None:
-            kwargs = {'strict': True if hc is None else False}
+            #kwargs = {'strict': True if hc is None else False}
+            kwargs = {'strict':True}
         else:
             kwargs = {}
 
