@@ -112,7 +112,7 @@ class CausalConv2d(nn.Conv2d):
         return m.unsqueeze(0).unsqueeze(1)
 
 
-    def forward(self, x, strict):
+    def forward(self, x, strict=False):
 
         mask = self.kernel_mask(strict)
         weight = self.weight*mask
@@ -147,7 +147,7 @@ class CausalConv3d(nn.Conv3d):
         return m.unsqueeze(0).unsqueeze(1)
 
 
-    def forward(self, x, strict):
+    def forward(self, x, strict=False):
 
         mask = self.kernel_mask(strict)
         weight = self.weight*mask

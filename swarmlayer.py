@@ -124,9 +124,9 @@ class SwarmConvLSTMCell(nn.Module):
             pool = 0
         else:
             h,c = hc
-            pool = self.Whp( self.pool_function(h, mask), **kwargs)
+            pool = self.Whp( self.pool_function(h, mask))
 
-        tmp = self.Wih(x, **kwargs) + self.Whh(h, **kwargs)  + pool  # (N,4*n_out, H,W)
+        tmp = self.Wih(x, **kwargs) + self.Whh(h)  + pool  # (N,4*n_out, H,W)
         tmp = tmp.view(N,4,self.n_out,*x_sz[2:])
 
         ig = torch.sigmoid( tmp[:,0])
