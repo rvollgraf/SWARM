@@ -239,11 +239,11 @@ from parse import parse
 class ModelName(object):
     #name_template  = "%s-%d-%s-%d-%d-wc%.0f-lr%f"
     # like "CIFAR10-2-relu-12-5-wc60-lr0.01"
-    name_template  = "{}-{:d}-{}-{:d}-{:d}-wc{:g}-lr{:g}-bs{:d}-{}"
+    name_template  = "{}-{:d}-{}-{:d}-{:d}-wc{:g}-lr{:g}-bs{:d}"
 
     def create(self, opt):
         name=ModelName.name_template.format(opt.data, opt.n_layers, opt.non_lin, opt.n_hidden,
-                                            opt.n_iter, opt.wc, opt.lr, opt.bs, opt.p)
+                                            opt.n_iter, opt.wc, opt.lr, opt.bs)
         return name
 
     def parse(self, name, opt):
@@ -252,7 +252,7 @@ class ModelName(object):
         if res is None:
             raise ValueError("Could not parse model name {}".format(name))
         (opt.data, opt.n_layers, opt.non_lin, opt.n_hidden,
-         opt.n_iter, opt.wc, opt.lr, opt.bs, opt.p) = tuple(res)
+         opt.n_iter, opt.wc, opt.lr, opt.bs) = tuple(res)
         return opt
 
 
