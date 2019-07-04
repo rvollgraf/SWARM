@@ -88,8 +88,7 @@ class SwarmTransformer(nn.Module):
 
     def prepare_data(self, X, Y=None):
         """
-        Prepare input data to be used for training. In order to use a 2d SwarmLSTMConvCell, the input's W and C
-        dimensions are flattened
+        Prepare input data to be used for training.
         :param X: channel-first batch of images, size (N,C,H,W)
         :param Y: batch of labels, size (N)
         :return: X_in, X_out  (X_in: (N,n_emb,H,W*C), X_out: (N,H,W,C))
@@ -101,9 +100,10 @@ class SwarmTransformer(nn.Module):
         X_in = X_in.transpose(4,1)     # (N,Demb,H,W,C)
 
         # 2. shift input by one to enforce causality
-        X_in = X_in.contiguous().view((N, self.n_emb, -1))
-        X_in = torch.cat( (torch.zeros_like(X_in[:,:, 0:1]),X_in[:,:,:-1]), dim=2)
-        X_in = X_in.view((N, self.n_emb, H, W,C)).contiguous()
+        # obsolete in SWARM cells with strict causal convolution
+        # X_in = X_in.contiguous().view((N, self.n_emb, -1))
+        # X_in = torch.cat( (torch.zeros_like(X_in[:,:, 0:1]),X_in[:,:,:-1]), dim=2)
+        # X_in = X_in.view((N, self.n_emb, H, W,C)).contiguous()
 
         # 3. compute location features
         F = self.location_features
@@ -125,7 +125,8 @@ class SwarmTransformer(nn.Module):
             X_in = X_in + self.channel_embedding.view((1,self.n_emb,1,1,self.n_channels))
 
         # 6. flatten W and C channels in order to use a2d SwarmConvLSTMCell
-        X_in = X_in.view((N, self.n_emb, H, W*C))
+        # obsolete in 3d convolution
+        # X_in = X_in.view((N, self.n_emb, H, W*C))
 
         # output is the raw input with channels last
         X_out = X.transpose(1,2).transpose(2,3)
@@ -418,11 +419,11 @@ def main():
             n_out_last = n_in
             for i in range(n_layers):
                 if i<n_layers-1:
-                    layers.append( SwarmLayer(n_in=n_out_last, n_out=n_hidden, n_hidden=n_hidden, n_iter=n_iter, pooling='CAUSAL'))
+                    layers.append( SwarmLayer(n_in=n_out_last, n_out=n_hidden, n_hidden=n_hidden, n_iter=n_iter, pooling='CAUSAL', n_dim=3, kernel=(5,5,5)))
                     layers.append( non_linearity)
                     n_out_last = n_hidden
                 else:
-                    layers.append( SwarmLayer(n_in=n_out_last, n_out=n_classes, n_hidden=n_hidden, n_iter=n_iter, pooling='CAUSAL'))
+                    layers.append( SwarmLayer(n_in=n_out_last, n_out=n_classes, n_hidden=n_hidden, n_iter=n_iter, pooling='CAUSAL', n_dim=3, kernel=(5,5,5)))
 
 
             model = SwarmTransformer(layers, C=C, W=W, H=H, K=K, n_emb=n_in,
