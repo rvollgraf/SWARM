@@ -1,5 +1,7 @@
 import torch
 import torch.nn.functional as F
+import torch.nn as nn
+
 import numpy as np
 import math
 
@@ -84,3 +86,75 @@ def factors(n):
         return pf
     pf = [1] + prime_factors(n)
     return np.unique([np.prod(l) for l in chain(*[list(combinations(pf,i)) for i in range(1,len(pf))])])
+
+
+
+
+
+
+class CausalConv2d(nn.Conv2d):
+
+    def __init__(self, n_in, n_out, kernel, **kwargs):
+
+        super().__init__(n_in, n_out, kernel, **kwargs, padding=(kernel[0]//2, kernel[1]//2) )
+
+
+
+    def kernel_mask(self, strict):
+
+        m = torch.ones_like( self.weight[0,0])
+        m[self.kernel_size[0]//2+1:]=0
+        if strict:
+            m[self.kernel_size[0]//2:, self.kernel_size[1]//2:] = 0
+        else:
+            m[self.kernel_size[0]//2:, self.kernel_size[1]//2+1:] = 0
+
+        return m.unsqueeze(0).unsqueeze(1)
+
+
+    def forward(self, x, strict):
+
+        mask = self.kernel_mask(strict)
+        weight = self.weight*mask
+
+        out = F.conv2d( x, weight, self.bias, self.stride,
+                        self.padding, self.dilation, self.groups)
+
+        out = out[:,:,:x.size()[2], :x.size()[3]]
+
+        return out
+
+
+class CausalConv3d(nn.Conv3d):
+
+    def __init__(self, n_in, n_out, kernel, **kwargs):
+
+        super().__init__(n_in, n_out, kernel, **kwargs, padding=(kernel[0]//2, kernel[1]//2, kernel[2]//2) )
+
+
+
+    def kernel_mask(self, strict):
+
+        m = torch.ones_like( self.weight[0,0])
+        m[self.kernel_size[0]//2+1:]=0
+        m[self.kernel_size[0]//2:,self.kernel_size[1]//2+1:]=0
+        if strict:
+            m[self.kernel_size[0]//2:, self.kernel_size[1]//2:,self.kernel_size[2]//2 :] = 0
+        else:
+            m[self.kernel_size[0]//2:, self.kernel_size[1]//2:,self.kernel_size[2]//2+1:] = 0
+
+
+        return m.unsqueeze(0).unsqueeze(1)
+
+
+    def forward(self, x, strict):
+
+        mask = self.kernel_mask(strict)
+        weight = self.weight*mask
+
+        out = F.conv3d( x, weight, self.bias, self.stride,
+                        self.padding, self.dilation, self.groups)
+
+        out = out[:,:,:x.size()[2], :x.size()[3],  :x.size()[4] ]
+
+        return out
