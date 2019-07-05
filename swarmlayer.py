@@ -164,7 +164,7 @@ class SwarmLayer(nn.Module):
         :param dropout: dropout rate (applied to h, not c, between iterations)
         :param pooling: to be used in the SWARM cell 'CAUSAL' or 'MEAN'
         :param channel_first: entity dimension is dimension 1, right after batch dimension (default), otherwise it is last
-        :param kernel: to be used SWARM cells with CausalConv layers instead of 1x1 convolutions
+        :param kernel: to be used SWARM layers with CausalConv layers instead of 1x1 convolutions
         """
         super().__init__()
 
