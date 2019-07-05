@@ -55,7 +55,7 @@ class RGBNetwork(nn.Module):
         w = w.view(N,w_sz[1],-1)
 
         r_emb = self.emb_r(x[:,0]).permute(0,2,1)
-        g_emb = self.emb_r(x[:,1]).permute(0,2,1)
+        g_emb = self.emb_g(x[:,1]).permute(0,2,1)
         logits_r = self.conv_r(w)
         logits_g = self.conv_g(w + r_emb)
         logits_b = self.conv_b(w + r_emb + g_emb)
@@ -268,7 +268,7 @@ def create_sample_fn( model, C,H,W, K,  device):
                     for c in range(C):
                         _,logits = model(X,Y)
 
-                        m = Multinomial(logits=logits[:,:,h,w,c])
+                        m = Multinomial(logits=logits[:,:,c,h,w])
                         X_ = m.sample(torch.Size([]))
                         X[:,c,h,w] = torch.argmax(X_,dim=1)
 
