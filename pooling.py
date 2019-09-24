@@ -76,3 +76,37 @@ class Causal( Pooling):
 
         return pool
 
+
+
+class PoolingMaps(Pooling):
+
+    def __init__(self, n_in, n_slices, n_dim):
+
+        n_out = n_in-2*n_slices
+        super().__init__(n_in, n_out, n_dim)
+        self.n_slices = n_slices
+
+
+    def forward(self, x, mask = None):
+
+        # x is (N, n_in+2*n_slices, E)
+
+        assert x.size(1) == self.n_in
+
+        a = x[:, :self.n_in-2*self.n_slices]
+        b = x[:, self.n_in-2*self.n_slices:-self.n_slices]
+        c = x[:, -self.n_slices:]
+
+        if mask is not None:
+            b = b+torch.log(mask.unsqueeze(1).float())
+        b = torch.softmax(b.view(b.size(0),b.size(1),-1), dim=2).view(b.size())
+
+        tmp = a.unsqueeze(1) * b.unsqueeze(2) #(N, n_slices, n_in, E)
+        #print(tmp.size())
+        tmp  = tmp.sum(dim=3, keepdim=True) #(N, n_slices, n_in, 1)
+        #print(tmp.size())
+        tmp =  tmp * c.unsqueeze(2)
+        #print(tmp.size())
+        out = torch.sum(tmp, dim=1)
+
+        return out

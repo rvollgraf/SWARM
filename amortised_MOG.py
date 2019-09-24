@@ -13,7 +13,7 @@ from scipy.stats import dirichlet
 import matplotlib
 from torch.optim.lr_scheduler import ExponentialLR, StepLR
 
-from pooling import AttentionPooling
+from pooling import PoolingMaps
 from set_transformer import PoolingMultiheadAttention, MultiheadAttentionBlock
 from swarmlayer import SwarmLayer
 
@@ -63,6 +63,9 @@ def get_options():
     parser.add_argument('-run', type=int, default=0)
 
     parser.add_argument('-resume', type=str, default=None)
+
+    parser.add_argument('-p', default='MEAN', choices=['MEAN','POMA'])
+
 
     # parser.add_argument('-epoch', type=int, default=10)
     # parser.add_argument('-batch_size', type=int, default=64)
@@ -171,6 +174,7 @@ class SwarmMOG(nn.Module):
                  n_clust=4,
                  n_dim=2,
                  non_lin = 'relu',
+                 pooling='MEAN',
                  pma = False):
         super().__init__()
 
@@ -185,7 +189,7 @@ class SwarmMOG(nn.Module):
         for i in range(n_layers):
             if i == n_layers-1:
                 next_in =  n_out if not pma else 128
-            swarm = SwarmLayer(last_out, next_in, n_hidden, n_iter=n_iter, n_dim=1, channel_first=False, pooling='MEAN', cache=True)
+            swarm = SwarmLayer(last_out, next_in, n_hidden, n_iter=n_iter, n_dim=1, channel_first=False, pooling=pooling, cache=True)
             last_out = next_in
 
             swarm.cell.Wih.bias.data.zero_()
@@ -270,7 +274,8 @@ class SwarmMOG(nn.Module):
 
 
 def create_model(opt):
-    model = SwarmMOG( opt.n_dim, opt.n_clust*(2*opt.n_dim+1), opt.n_hidden, opt.n_iter, opt.n_layers, opt.n_clust, opt.n_dim, opt.non_lin, opt.pma)
+    model = SwarmMOG( opt.n_dim, opt.n_clust*(2*opt.n_dim+1), opt.n_hidden, opt.n_iter, opt.n_layers, opt.n_clust, opt.n_dim,
+                      opt.non_lin, opt.p, opt.pma)
     return model
 
 

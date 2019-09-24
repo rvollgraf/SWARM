@@ -4,7 +4,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from pooling import Pooling, Mean, Causal
+from pooling import Pooling, Mean, Causal, PoolingMaps
 
 
 class SwarmConvLSTMCell(nn.Module):
@@ -119,8 +119,10 @@ class SwarmLayer(nn.Module):
 
         if pooling=='MEAN':
             pooling = Mean(n_hidden, n_hidden, n_dim)
-        elif pooling=='CAUSAL':
+        elif pooling == 'CAUSAL':
             pooling = Causal(n_hidden, n_hidden, n_dim)
+        elif pooling == 'POMA':
+            pooling = PoolingMaps(n_hidden, 4, n_dim)
         elif isinstance(pooling,Pooling):
             pass
         else:
