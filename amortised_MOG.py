@@ -13,6 +13,7 @@ from scipy.stats import dirichlet
 import matplotlib
 from torch.optim.lr_scheduler import ExponentialLR, StepLR
 
+from pooling import AttentionPooling
 from set_transformer import PoolingMultiheadAttention, MultiheadAttentionBlock
 from swarmlayer import SwarmLayer
 
@@ -184,7 +185,7 @@ class SwarmMOG(nn.Module):
         for i in range(n_layers):
             if i == n_layers-1:
                 next_in =  n_out if not pma else 128
-            swarm = SwarmLayer(last_out, next_in, n_hidden, n_iter=n_iter, n_dim=1, channel_first=False)
+            swarm = SwarmLayer(last_out, next_in, n_hidden, n_iter=n_iter, n_dim=1, channel_first=False, pooling='MEAN')
             last_out = next_in
 
             swarm.cell.Wih.bias.data.zero_()

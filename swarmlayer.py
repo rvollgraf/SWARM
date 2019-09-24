@@ -1,11 +1,15 @@
+import math
+
 import numpy as np
 import torch
 import torch.nn as nn
 
+from pooling import Pooling, Mean, Causal
+
 
 class SwarmConvLSTMCell(nn.Module):
 
-    def __init__(self, n_in, n_out, n_dim=2, pooling='CAUSAL', cache=False):
+    def __init__(self, n_in, n_out, n_dim, pooling, cache=False):
         """
         Create a SwarmConvLSTMCell. We use 1-by-1 convolutions to carry on entities individually. The entities are aligned
         in a 1d or 2d spatial structure. Note that, unless pooling is 'CAUSAL', this setup is indeed permutation-equivariant.
@@ -15,8 +19,11 @@ class SwarmConvLSTMCell(nn.Module):
         :param n_out: output dimension of the entities
         :param n_dim: dimension of the spatial arrangement of the entities (1 or 2)
         :param pooling: pooling method 'MEAN' or 'CAUSAL'
+        :param cache: cache the result of self.Wih(x) in self.x_cache
         """
-        assert pooling in ['CAUSAL','MEAN']
+        assert isinstance(pooling, Pooling)
+        assert pooling.n_dim == n_dim
+        assert pooling.n_in == n_out
 
         super().__init__()
 
@@ -28,11 +35,11 @@ class SwarmConvLSTMCell(nn.Module):
             # input, output, and forget gates, and cell input
             self.Wih = nn.Conv2d( n_in, 4 * n_out, (1,1), bias=True)
             self.Whh = nn.Conv2d(n_out, 4 * n_out, (1,1), bias=False)
-            self.Whp = nn.Conv2d(n_out, 4 * n_out, (1,1), bias=False)
+            self.Whp = nn.Conv2d(pooling.n_out, 4 * n_out, (1,1), bias=False)
         elif n_dim==1:
             self.Wih = nn.Conv1d( n_in, 4 * n_out, 1, bias=True)
             self.Whh = nn.Conv1d(n_out, 4 * n_out, 1, bias=False)
-            self.Whp = nn.Conv1d(n_out, 4 * n_out, 1, bias=False)
+            self.Whp = nn.Conv1d(pooling.n_out, 4 * n_out, 1, bias=False)
         else:
             raise ValueError("dim {} not supported".format(n_dim))
 
@@ -40,43 +47,9 @@ class SwarmConvLSTMCell(nn.Module):
 
         self.pooling = pooling
 
-
         self.cache = cache
         self.x_cache = None
 
-    def pool_function(self, h, mask):
-        """
-        Execute the pooling. Only entities that are masked (mask==0) will be ignored
-        :param h: input to the pooling operation
-        :param mask: entity mask (currently implemented only for 'MEAN' pooling)
-        :return:
-        """
-        h_sz = h.size()
-        if self.pooling == 'CAUSAL':
-            # 1. flatten all spatial dimensions
-            pool = h.view((h_sz[0], self.n_out, -1))
-            # 2. compute cumulative means of non-successort entities
-            pool = torch.cumsum(pool, dim=2) / (torch.arange( np.prod(h_sz[2:]), device=pool.device).float() + 1.0).view(1, 1, -1)
-            # 3. reshape to the original spatial layout
-            pool = pool.view(h_sz)
-
-        elif self.pooling == 'MEAN':
-            # 1. flatten all spatial dimensions
-            pool = h.view((h_sz[0], self.n_out, -1))
-            if mask is None:
-                # 2. compute mean over spatial dimensions
-                pool = pool.mean(dim=2,keepdim=True).expand(h_sz)
-            else:
-                # 2. compute masked mean over spatial dimensions
-                mask = mask.view((h_sz[0], 1, -1)).float()
-                pool = (pool*mask).sum(dim=2,keepdim=True).expand(h_sz)
-                pool = pool / mask.sum(dim=2,keepdim=True).expand(h_sz)
-                pool = pool.view(h_sz)
-
-        else:
-            raise ValueError("Unknown pooling method {:s}".format(self.pooling))
-
-        return pool
 
     def forward(self,x, mask=None, hc=None):
         """
@@ -98,7 +71,7 @@ class SwarmConvLSTMCell(nn.Module):
             self.x_cache = tmp
         else:
             h,c = hc
-            pool = self.Whp( self.pool_function(h, mask))
+            pool = self.Whp (self.pooling(h,mask))
             tmp = (self.x_cache if self.cache else self.Wih(x)) + self.Whh(h)  + pool  # (N,4*n_out, H,W)
 
         tmp = tmp.view(N,4,self.n_out,*x_sz[2:])
@@ -138,10 +111,21 @@ class SwarmLayer(nn.Module):
         :param dropout: dropout rate (applied to h, not c, between iterations)
         :param pooling: to be used in the SWARM cell 'CAUSAL' or 'MEAN'
         :param channel_first: entity dimension is dimension 1, right after batch dimension (default), otherwise it is last
+        :param cache: perform the computation of self.cell.Wih(x) only once and cache it over the rest of the iterations
         """
         super().__init__()
 
         self.n_iter = n_iter
+
+        if pooling=='MEAN':
+            pooling = Mean(n_hidden, n_hidden, n_dim)
+        elif pooling=='CAUSAL':
+            pooling = Causal(n_hidden, n_hidden, n_dim)
+        elif isinstance(pooling,Pooling):
+            pass
+        else:
+            raise ValueError
+
         self.cell = SwarmConvLSTMCell(n_in, n_hidden, n_dim=n_dim, pooling=pooling, cache=cache)
 
         self.n_dim = n_dim
@@ -162,7 +146,7 @@ class SwarmLayer(nn.Module):
         self.channel_first = channel_first
 
 
-    def forward(self, x, mask=None, cache=False):
+    def forward(self, x, mask=None):
         """
         forward process the SwarmLayer
         :param x: input
