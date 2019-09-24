@@ -185,7 +185,7 @@ class SwarmMOG(nn.Module):
         for i in range(n_layers):
             if i == n_layers-1:
                 next_in =  n_out if not pma else 128
-            swarm = SwarmLayer(last_out, next_in, n_hidden, n_iter=n_iter, n_dim=1, channel_first=False, pooling='MEAN')
+            swarm = SwarmLayer(last_out, next_in, n_hidden, n_iter=n_iter, n_dim=1, channel_first=False, pooling='MEAN', cache=True)
             last_out = next_in
 
             swarm.cell.Wih.bias.data.zero_()
